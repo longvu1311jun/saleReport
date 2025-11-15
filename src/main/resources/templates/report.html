@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <title>Báo cáo Sale</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { border: 1px solid #ddd; padding: 8px; text-align: center; }
+    th { background-color: #f2f2f2; }
+    h1 { margin-bottom: 10px; }
+    .small { color: #777; font-size: 13px; }
+  </style>
+</head>
+<body>
+<h1>Báo cáo Sale theo tháng hiện tại</h1>
+<p>Dữ liệu auto cập nhật mỗi 1 giờ từ Lark Base.</p>
+
+<form method="get" action="/report/token" style="margin-bottom: 10px;">
+  <label>
+    User access token (u-...):
+    <input type="text" name="userToken" style="width: 280px;">
+  </label>
+  <button type="submit">Lưu token</button>
+</form>
+
+
+<p th:if="${!hasToken}" style="color: red;">
+  Vui lòng nhập user access token để load dữ liệu.
+</p>
+
+
+<table border="1" cellpadding="4" cellspacing="0" style="margin-top: 10px; border-collapse: collapse;">
+  <thead>
+  <tr>
+    <th>Tư vấn viên</th>
+    <th>Tổng</th>
+    <th>Nhu cầu</th>
+    <th>Trùng</th>
+    <th>Rác</th>
+    <th>Không tương tác</th>
+    <th>Chốt nóng</th>
+    <th>Chốt cũ</th>
+    <th>Đơn huỷ</th>
+    <th>Đơn hoàn</th>
+  </tr>
+  </thead>
+  <tbody>
+  <tr th:each="s : ${report}">
+    <td th:text="${s.staffName}">Tên TV</td>
+    <td th:text="${s.total}">0</td>
+    <td th:text="${s.nhuCau}">0</td>
+    <td th:text="${s.trung}">0</td>
+    <td th:text="${s.rac}">0</td>
+    <td th:text="${s.khongTuongTac}">0</td>
+    <td th:text="${s.chotNong}">0</td>
+    <td th:text="${s.chotCu}">0</td>
+    <td th:text="${s.donHuy}">0</td>
+    <td th:text="${s.donHoan}">0</td>
+  </tr>
+  </tbody>
+</table>
+
+</body>
+</html>
