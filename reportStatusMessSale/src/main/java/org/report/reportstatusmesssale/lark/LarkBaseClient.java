@@ -47,107 +47,118 @@ public class LarkBaseClient {
    * Gọi Bitable records/search cho 1 bảng (table + viewId đã fix trong SalesTablesConfig)
    */
   public List<CustomerRecord> fetchRecords(SalesTablesConfig.SalesTable table) {
-    log.info(">>> ===== FETCH RECORDS =====");
-    log.info(">>> STAFF       = {}", table.getDisplayName());
-    log.info(">>> TABLE_ID    = {}", table.getTableId());
-    log.info(">>> VIEW_ID     = {}", table.getViewId());
+      log.info(">>> ===== FETCH RECORDS =====");
+      log.info(">>> STAFF       = {}", table.getDisplayName());
+      log.info(">>> TABLE_ID    = {}", table.getTableId());
+      log.info(">>> VIEW_ID     = {}", table.getViewId());
 
-    String userToken = getAccessTokenForBitable();
+      String userToken = getAccessTokenForBitable();
 
-    List<CustomerRecord> result = new ArrayList<>();
-    String pageToken = null;
+      List<CustomerRecord> result = new ArrayList<>();
+      String pageToken = null;
 
-    do {
-      String url = props.getBaseUrl()
-          + "/open-apis/bitable/v1/apps/"
-          + props.getAppToken()
-          + "/tables/"
-          + table.getTableId()
-          + "/records/search?page_size=500";
+      do {
+          String url = props.getBaseUrl()
+                  + "/open-apis/bitable/v1/apps/"
+                  + props.getAppToken()
+                  + "/tables/"
+                  + table.getTableId()
+                  + "/records/search?page_size=500";
 
-      if (pageToken != null && !pageToken.isEmpty()) {
-        url += "&page_token=" + pageToken;
-      }
-
-      log.info(">>> [RECORD] CALL SEARCH URL = {}", url);
-
-      // body giống CURL bạn test trên API explorer
-      ObjectNode body = objectMapper.createObjectNode();
-      body.put("automatic_fields", false);
-      ArrayNode fieldNames = body.putArray("field_names");
-      fieldNames.add("Ngày tạo");
-      fieldNames.add("Trạng thái mess");
-      body.put("view_id", table.getViewId());
-
-      String rawJson = webClient.post()
-          .uri(url)
-          .header("Authorization", "Bearer " + userToken)
-          .header("Content-Type", "application/json")
-          .bodyValue(body)
-          .retrieve()
-          .bodyToMono(String.class)
-          .block();
-
-      log.info(">>> [RECORD] RAW RESPONSE = {}", rawJson);
-
-      JsonNode root;
-      try {
-        root = objectMapper.readTree(rawJson);
-      } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
-        log.error(">>> [RECORD] JSON PARSE ERROR, RAW = {}", rawJson, e);
-        throw new RuntimeException("Cannot parse JSON from bitable", e);
-      }
-
-      int code = root.path("code").asInt(-1);
-      if (code != 0) {
-        log.warn(">>> [RECORD] ERROR CODE = {}, BODY = {}", code, rawJson);
-        throw new RuntimeException("Error calling records/search, code = " + code);
-      }
-
-      JsonNode dataNode = root.path("data");
-      JsonNode itemsNode = dataNode.path("items");
-
-      if (itemsNode.isArray()) {
-        for (JsonNode item : itemsNode) {
-          JsonNode fields = item.path("fields");
-          if (fields.isMissingNode()) continue;
-
-          // Ngày tạo: epoch milli -> LocalDate
-          JsonNode createdNode = fields.path("Ngày tạo");
-          if (!createdNode.isNumber()) continue;
-          long createdMillis = createdNode.asLong();
-          LocalDate createdDate = Instant.ofEpochMilli(createdMillis)
-              .atZone(ZoneId.systemDefault())
-              .toLocalDate();
-
-          // Trạng thái mess: array -> lấy phần tử đầu tiên
-          JsonNode statusNode = fields.path("Trạng thái mess");
-          String status = null;
-          if (statusNode.isArray() && statusNode.size() > 0) {
-            status = statusNode.get(0).asText();
+          if (pageToken != null && !pageToken.isEmpty()) {
+              url += "&page_token=" + pageToken;
           }
 
-          CustomerRecord cr = new CustomerRecord(createdDate, status);
-          result.add(cr);
+          log.info(">>> [RECORD] CALL SEARCH URL = {}", url);
 
-          result.add(cr);
-        }
-      }
+          // 🟩 BODY — default filter lấy dữ liệu trong tháng (CurrentMonth)
+          ObjectNode body = objectMapper.createObjectNode();
+          body.put("automatic_fields", false);
 
-      boolean hasMore = dataNode.path("has_more").asBoolean(false);
-      String nextToken = dataNode.path("page_token").asText(null);
+          ArrayNode fieldNames = body.putArray("field_names");
+          fieldNames.add("Ngày tạo");
+          fieldNames.add("Trạng thái mess");
 
-      if (hasMore && nextToken != null && !nextToken.isEmpty()) {
-        pageToken = nextToken;
-        log.info(">>> [RECORD] HAS MORE, PAGE_TOKEN = {}", pageToken);
-      } else {
-        pageToken = null;
-      }
+          body.put("view_id", table.getViewId());
 
-    } while (pageToken != null);
+          // 🟢 FILTER (NEW)
+          ObjectNode filter = body.putObject("filter");
+          filter.put("conjunction", "and");
 
-    log.info(">>> [RECORD] TOTAL RECORDS FETCHED = {}", result.size());
-    log.info(">>> ===== END FETCH =====");
-    return result;
+          ArrayNode conditions = filter.putArray("conditions");
+
+          ObjectNode cond = conditions.addObject();
+          cond.put("field_name", "Ngày tạo");
+          cond.put("operator", "is");
+
+          // value phải là array -> dùng CurrentMonth
+          ArrayNode v = cond.putArray("value");
+          v.add("CurrentMonth");
+
+          // 🟦 CALL BITABLE
+          String rawJson = webClient.post()
+                  .uri(url)
+                  .header("Authorization", "Bearer " + userToken)
+                  .header("Content-Type", "application/json")
+                  .bodyValue(body)
+                  .retrieve()
+                  .bodyToMono(String.class)
+                  .block();
+
+          log.info(">>> [RECORD] RAW RESPONSE = {}", rawJson);
+
+          JsonNode root;
+          try {
+              root = objectMapper.readTree(rawJson);
+          } catch (Exception e) {
+              log.error(">>> [RECORD] JSON PARSE ERROR, RAW = {}", rawJson, e);
+              throw new RuntimeException("Cannot parse JSON from bitable", e);
+          }
+
+          int code = root.path("code").asInt(-1);
+          if (code != 0) {
+              log.warn(">>> [RECORD] ERROR CODE = {}, BODY = {}", code, rawJson);
+              throw new RuntimeException("Error calling records/search, code = " + code);
+          }
+
+          JsonNode dataNode = root.path("data");
+          JsonNode itemsNode = dataNode.path("items");
+
+          if (itemsNode.isArray()) {
+              for (JsonNode item : itemsNode) {
+                  JsonNode fields = item.path("fields");
+                  if (fields.isMissingNode()) continue;
+
+                  // Ngày tạo trả về dạng timestamp
+                  JsonNode createdNode = fields.path("Ngày tạo");
+                  if (!createdNode.isNumber()) continue;
+
+                  long createdMillis = createdNode.asLong();
+                  LocalDate createdDate = Instant.ofEpochMilli(createdMillis)
+                          .atZone(ZoneId.systemDefault())
+                          .toLocalDate();
+
+                  JsonNode statusNode = fields.path("Trạng thái mess");
+                  String status = null;
+                  if (statusNode.isArray() && statusNode.size() > 0) {
+                      status = statusNode.get(0).asText();
+                  }
+
+                  CustomerRecord cr = new CustomerRecord(createdDate, status);
+                  result.add(cr);
+              }
+          }
+
+          boolean hasMore = dataNode.path("has_more").asBoolean(false);
+          String nextToken = dataNode.path("page_token").asText(null);
+
+          pageToken = (hasMore && nextToken != null && !nextToken.isEmpty()) ? nextToken : null;
+
+      } while (pageToken != null);
+
+      log.info(">>> [RECORD] TOTAL RECORDS FETCHED = {}", result.size());
+      log.info(">>> ===== END FETCH =====");
+      return result;
   }
+
 }
