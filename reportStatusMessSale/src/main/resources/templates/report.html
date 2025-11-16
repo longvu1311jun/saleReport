@@ -30,36 +30,45 @@
 </p>
 
 
-<table border="1" cellpadding="4" cellspacing="0" style="margin-top: 10px; border-collapse: collapse;">
-  <thead>
-  <tr>
-    <th>Tư vấn viên</th>
-    <th>Tổng</th>
-    <th>Nhu cầu</th>
-    <th>Trùng</th>
-    <th>Rác</th>
-    <th>Không tương tác</th>
-    <th>Chốt nóng</th>
-    <th>Chốt cũ</th>
-    <th>Đơn huỷ</th>
-    <th>Đơn hoàn</th>
-  </tr>
-  </thead>
-  <tbody>
-  <tr th:each="s : ${report}">
-    <td th:text="${s.staffName}">Tên TV</td>
-    <td th:text="${s.total}">0</td>
-    <td th:text="${s.nhuCau}">0</td>
-    <td th:text="${s.trung}">0</td>
-    <td th:text="${s.rac}">0</td>
-    <td th:text="${s.khongTuongTac}">0</td>
-    <td th:text="${s.chotNong}">0</td>
-    <td th:text="${s.chotCu}">0</td>
-    <td th:text="${s.donHuy}">0</td>
-    <td th:text="${s.donHoan}">0</td>
-  </tr>
-  </tbody>
-</table>
+<table>
+    <thead>
+    <tr>
+        <th>Tư vấn viên</th>
+        <th>Nhu cầu</th>
+        <th>Trùng</th>
+        <th>Rác</th>
+        <th>Không tương tác</th>
+        <th>Chốt nóng</th>
+        <th>Chốt cũ</th>
+        <th>Đơn huỷ</th>
 
+        <th>Tổng mess</th>
+        <th>Tổng đơn</th>
+        <th>Đơn/mess nhu cầu</th>
+        <th>Đơn/mess tổng</th>
+        <th>Tỉ lệ huỷ</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    <tr th:each="s : ${report}">
+        <td th:text="${s.staffName}"></td>
+
+        <td th:text="${s.nhuCau}"></td>
+        <td th:text="${s.trung}"></td>
+        <td th:text="${s.rac}"></td>
+        <td th:text="${s.khongTuongTac}"></td>
+        <td th:text="${s.chotNong}"></td>
+        <td th:text="${s.chotCu}"></td>
+        <td th:text="${s.donHuy}"></td>
+
+        <td th:text="${s.tongMes}"></td>
+        <td th:text="${s.tongDon}"></td>
+        <td th:text="${s.donMesNhuCau}"></td>
+        <td th:text="${s.donMesTong}"></td>
+        <td th:text="${s.tiLeHuy}"></td>
+    </tr>
+    </tbody>
+</table>
 </body>
 </html>
